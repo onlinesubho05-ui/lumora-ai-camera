@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>LUMORA AI CAMERA</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#050608;color:#fff;font-family:system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+#app{height:100%;position:relative;background:#050608}
+#preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#090a0c}
+#preview.mirror{transform:scaleX(-1)}
+#shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.62),transparent 25%,transparent 62%,rgba(0,0,0,.86))}
+.top{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 14px) 16px 8px;display:flex;align-items:center;justify-content:space-between;z-index:4}
+.logo{font-weight:800;letter-spacing:3px;font-size:15px}.sub{font-size:9px;color:#9ea3ad;letter-spacing:2px;margin-top:2px}
+.pill{border:1px solid #ffffff30;background:#0008;border-radius:20px;padding:7px 10px;font-size:11px;backdrop-filter:blur(12px)}
+#status{position:absolute;top:92px;left:50%;transform:translateX(-50%);z-index:5;display:none;padding:8px 13px;border-radius:18px;background:#000b;border:1px solid #ffffff25;font-size:11px;white-space:nowrap}
+.bottom{position:absolute;left:0;right:0;bottom:0;z-index:5;padding:10px 12px calc(env(safe-area-inset-bottom) + 12px);background:linear-gradient(transparent,#050608 18%)}
+.modes{display:flex;gap:8px;overflow-x:auto;padding:8px 3px 14px;scrollbar-width:none}.modes::-webkit-scrollbar{display:none}
+.mode{flex:0 0 auto;border:0;background:#ffffff10;color:#dfe3e8;border-radius:18px;padding:8px 12px;font-size:11px}.mode.active{background:#fff;color:#050608;font-weight:700}
+.controls{display:grid;grid-template-columns:52px 1fr 52px;align-items:center;gap:18px}
+.iconbtn{width:52px;height:52px;border-radius:50%;border:1px solid #ffffff30;background:#0009;color:#fff;font-size:18px}
+.shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:transparent;justify-self:center;padding:5px}
+.shutter i{display:block;width:100%;height:100%;border-radius:50%;background:#fff;transition:.15s}.shutter:active i{transform:scale(.82)}
+.pro{display:none;background:#000b;border:1px solid #ffffff20;border-radius:18px;padding:10px;margin:0 2px 10px}
+.pro.show{display:block}.row{display:grid;grid-template-columns:62px 1fr 46px;gap:9px;align-items:center;font-size:10px;color:#cdd2d9;margin:7px 0}.row input{width:100%}.row b{text-align:right;color:#fff;font-size:10px}
+#gallery{display:none}
+#galleryPanel{position:absolute;inset:0;background:#08090c;z-index:10;display:none;padding:calc(env(safe-area-inset-top) + 14px) 14px 20px}
+.ghead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;overflow:auto;height:calc(100% - 50px)}
+.grid img{width:100%;aspect-ratio:1;border-radius:10px;object-fit:cover}.empty{color:#858b95;text-align:center;margin-top:35vh;grid-column:1/-1}
+#flash{position:absolute;inset:0;background:#fff;z-index:20;opacity:0;pointer-events:none}.flash{animation:flash .22s}@keyframes flash{0%{opacity:.9}100%{opacity:0}}
+#canvas{display:none}
+#timer{position:absolute;inset:0;z-index:6;display:none;place-items:center;font-size:68px;font-weight:800;text-shadow:0 4px 25px #000}
+.note{position:absolute;left:50%;bottom:145px;transform:translateX(-50%);z-index:6;color:#c9ced6;font-size:10px;white-space:nowrap;opacity:.8}
+</style>
+</head>
+<body>
+<div id="app">
+<video id="preview" autoplay playsinline muted></video>
+<div id="shade"></div><div id="flash"></div><div id="timer"></div><canvas id="canvas"></canvas>
+<div class="top"><div><div class="logo">LUMORA</div><div class="sub">AI CAMERA • COMPUTATIONAL PHOTO</div></div><div class="pill" id="quality">AUTO • 1080P</div></div>
+<div id="status">Starting camera…</div>
+
+<div class="bottom">
+  <div class="pro" id="pro">
+    <div class="row"><span>Exposure</span><input id="ev" type="range" min="-2" max="2" step=".1" value="0"><b id="evv">0.0</b></div>
+    <div class="row"><span>Zoom</span><input id="zoom" type="range" min="1" max="3" step=".1" value="1"><b id="zoomv">1.0×</b></div>
+    <div class="row"><span>WB</span><input id="wb" type="range" min="3000" max="7000" step="100" value="4800"><b id="wbv">4800K</b></div>
+  </div>
+  <div class="modes" id="modes">
+    <button class="mode active" data-mode="DSLR">AI DSLR</button>
+    <button class="mode" data-mode="NIGHT">NIGHT</button>
+    <button class="mode" data-mode="PORTRAIT">PORTRAIT</button>
+    <button class="mode" data-mode="ASTRO">ASTRO</button>
+    <button class="mode" data-mode="PRO">PRO</button>
+    <button class="mode" data-mode="VIDEO">CINEMATIC</button>
+    <button class="mode" data-mode="TIMELAPSE">TIMELAPSE</button>
+    <button class="mode" data-mode="HYPERLAPSE">HYPERLAPSE</button>
+  </div>
+  <div class="controls">
+    <button class="iconbtn" id="galleryBtn">▣</button>
+    <button class="shutter" id="shutter"><i></i></button>
+    <button class="iconbtn" id="switch">↻</button>
+  </div>
+</div>
+
+<div id="galleryPanel">
+  <div class="ghead"><b>Captured Photos</b><button class="iconbtn" id="closeGallery">×</button></div>
+  <div class="grid" id="grid"></div>
+</div>
+</div>
+
+<script>
+const v=document.getElementById('preview'), c=document.getElementById('canvas'),ctx=c.getContext('2d',{willReadFrequently:true});
+const status=document.getElementById('status'), flash=document.getElementById('flash'), shutter=document.getElementById('shutter');
+let stream=null, facing='environment', mode='DSLR', busy=false, recording=null, chunks=[], timerInt=null, photos=[];
+const $=id=>document.getElementById(id);
+function msg(t,ms=1600){status.textContent=t;status.style.display='block';clearTimeout(msg.t);msg.t=setTimeout(()=>status.style.display='none',ms)}
+async function startCamera(){
+ try{
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing,width:{ideal:1920},height:{ideal:1080}},audio:false});
+  v.srcObject=stream; v.classList.toggle('mirror',facing==='user');
+  await v.play(); msg('Camera ready',900);
+ }catch(e){msg('Camera permission / WebView camera access is required',4000)}
+}
+function setMode(m){
+ mode=m; document.querySelectorAll('.mode').forEach(x=>x.classList.toggle('active',x.dataset.mode===m));
+ $('pro').classList.toggle('show',m==='PRO');
+ $('quality').textContent=m==='VIDEO'?'CINEMATIC • 1080P':m==='ASTRO'?'ASTRO • STABLE':m+' • AI';
+ if(m==='NIGHT') msg('Night multi-frame simulation ready');
+ if(m==='ASTRO') msg('Astro mode: keep phone very stable');
+ if(m==='PRO') msg('Pro controls enabled');
+}
+function fitCanvas(){
+ const w=v.videoWidth||1280,h=v.videoHeight||720; const max=1920;
+ let W=w,H=h;if(W>max){H=Math.round(H*max/W);W=max}
+ c.width=W;c.height=H;ctx.drawImage(v,0,0,W,H);
+}
+function processImage(){
+ const im=ctx.getImageData(0,0,c.width,c.height), d=im.data;
+ let exp=parseFloat($('ev').value), add=exp*22;
+ for(let i=0;i<d.length;i+=4){
+   let r=d[i],g=d[i+1],b=d[i+2];
+   if(mode==='NIGHT'||mode==='ASTRO'){r=Math.min(255,r*1.24+10);g=Math.min(255,g*1.22+9);b=Math.min(255,b*1.20+8)}
+   if(mode==='DSLR'||mode==='PORTRAIT'){r=Math.min(255,r*1.06);g=Math.min(255,g*1.04);b=Math.min(255,b*1.02)}
+   if(mode==='ASTRO'){b=Math.min(255,b*1.08)}
+   r=Math.max(0,Math.min(255,r+add));g=Math.max(0,Math.min(255,g+add));b=Math.max(0,Math.min(255,b+add));
+   const lum=.2126*r+.7152*g+.0722*b, con=mode==='DSLR'?1.10:mode==='NIGHT'?1.04:1.03;
+   d[i]=Math.max(0,Math.min(255,(r-lum)*con+lum));d[i+1]=Math.max(0,Math.min(255,(g-lum)*con+lum));d[i+2]=Math.max(0,Math.min(255,(b-lum)*con+lum));
+ }
+ ctx.putImageData(im,0,0);
+ if(mode==='PORTRAIT'){
+   const grad=ctx.createRadialGradient(c.width/2,c.height*.45,c.width*.18,c.width/2,c.height*.45,c.width*.75);
+   grad.addColorStop(0,'rgba(255,255,255,0)');grad.addColorStop(1,'rgba(0,0,0,.12)');
+   ctx.fillStyle=grad;ctx.fillRect(0,0,c.width,c.height);
+ }
+}
+function downloadPhoto(){
+ c.toBlob(blob=>{
+   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Lumora_'+Date.now()+'.jpg';a.click();
+   URL.revokeObjectURL(a.href);
+ },'image/jpeg',.94);
+}
+async function capture(){
+ if(busy)return; busy=true;
+ flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');
+ msg(mode==='NIGHT'||mode==='ASTRO'?'Processing multi-frame style image…':'Processing AI DSLR image…',mode==='NIGHT'||mode==='ASTRO'?4300:2800);
+ await new Promise(r=>setTimeout(r, mode==='NIGHT'||mode==='ASTRO'?4200:2600));
+ fitCanvas(); processImage();
+ const data=c.toDataURL('image/jpeg',.94); photos.unshift(data); if(photos.length>30)photos.pop();
+ renderGallery(); downloadPhoto(); msg('Saved • Gallery/download folder',1200); busy=false;
+}
+function renderGallery(){const g=$('grid');g.innerHTML=photos.length?photos.map(x=>'<img src="'+x+'">').join(''):'<div class="empty">No photos yet</div>'}
+async function recordVideo(){
+ if(recording){recording.stop();return}
+ if(!v.srcObject){msg('Camera not ready');return}
+ try{
+  const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm':'video/webm';
+  chunks=[];recording=new MediaRecorder(v.srcObject,{mimeType:mime});
+  recording.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  recording.onstop=()=>{const blob=new Blob(chunks,{type:mime}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Lumora_Cinematic_'+Date.now()+'.webm';a.click();URL.revokeObjectURL(a.href);recording=null;msg('Video saved',1200);shutter.style.borderColor='#fff'};
+  recording.start();shutter.style.borderColor='#ff4055';msg('Recording • tap shutter to stop',1200);
+ }catch(e){msg('Video recording is not supported by this WebView',3000)}
+}
+let lapseTimer=null,lapseCount=0;
+function timelapse(){
+ if(lapseTimer){clearInterval(lapseTimer);lapseTimer=null;msg('Timelapse stopped');return}
+ lapseCount=0;msg('Timelapse started • frame capture only',1800);
+ lapseTimer=setInterval(()=>{fitCanvas();processImage();lapseCount++;if(lapseCount>=60){clearInterval(lapseTimer);lapseTimer=null;msg('Timelapse capture complete',1800)}}, mode==='HYPERLAPSE'?400:1500);
+}
+shutter.onclick=()=>{if(mode==='VIDEO')recordVideo();else if(mode==='TIMELAPSE'||mode==='HYPERLAPSE')timelapse();else capture()};
+$('switch').onclick=async()=>{facing=facing==='environment'?'user':'environment';await startCamera()};
+document.querySelectorAll('.mode').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+$('galleryBtn').onclick=()=>{$('galleryPanel').style.display='block';renderGallery()};
+$('closeGallery').onclick=()=>$('galleryPanel').style.display='none';
+$('ev').oninput=e=>$('evv').textContent=Number(e.target.value).toFixed(1);
+$('zoom').oninput=e=>{$('zoomv').textContent=Number(e.target.value).toFixed(1)+'×';v.style.transform=`scaleX(${facing==='user'?-1:1}) scale(${e.target.value})`};
+$('wb').oninput=e=>$('wbv').textContent=e.target.value+'K';
+if(!navigator.mediaDevices?.getUserMedia)msg('This WebView does not expose a camera API. Use a Web-to-APK builder with camera support.',5000);else startCamera();
+</script>
+</body>
+</html>
